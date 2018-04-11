@@ -1,0 +1,5 @@
+Stephanie Schouman
+svschou
+
+Initial Project Idea
+This application is a Harry Potter themed (surprise) application that allows a user to create an account and login to save Hogwarts related data. Using the Potter API (https://www.potterapi.com/login/) and a list of Harry Potter spells (https://www.pojo.com/harry-potter-spell-list/), this application let’s a user be sorted into a specific Hogwarts House, learn different spells and meet other Hogwarts Students. Each user will have a Spellbook (a list of each spell they’ve saved) and a Marauders’ Map (a list where they can save other Hogwarts students) that let’s a user create, update or delete friendships. 
