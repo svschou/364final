@@ -101,8 +101,6 @@ class Spell(db.Model):
     description = db.Column(db.String(150))
     # RELATIONSHIP TO USERS
 
-
-
 class House(db.Model):
     __tablename__ = "houses"
     id = db.Column(db.Integer, primary_key=True)
@@ -121,6 +119,8 @@ def get_char_data(char_name):
     hp_list = json.loads(response.text) 
 
     return hp_list # list of character dictionaries
+
+
 
 ## Forms
 # GIPHY HOMEWORK - PROVIDED
@@ -146,13 +146,25 @@ class LoginForm(FlaskForm):
     remember_me = BooleanField('Keep me logged in')
     submit = SubmitField('Log In')
 
+# SIMILAR TO MIDTERM
+# CHANGES: not requiring house, requiring affiliation
+class SearchStudentForm(FlaskForm):
+    name = StringField("Enter the name of a Hogwarts Student: ",validators=[Required()])
+    def validate_name(form,field):
+        if " " not in field.data:
+            raise ValidationError("Please enter the first and last name separated by a space")
+    affilitation = StringField("Enter your affilitation with this student (friend, enemy, etc.): ",validators=[Required()])
+    submit = SubmitField('Search Hogwarts Students')
+
 ## View Functions
 @app.route('/', methods=["GET","POST"]) # starting page
 def index():
-    #pass 
+    form = SearchStudentForm()
+    if form.validate_on_submit(): ## --> Post to a new page
+    	student_data = get_char_data(form.name.data)
     # will render_template for base.html, which will include links to all clickable pages and ensures sign in/sign out buttons depending on authentication
     # clickable links include: /sorting_hat, /show_students, /show_spells
-    return(render_template("index.html"))
+    return render_template("index.html",form=form)
 
 @app.route('/login',methods=["GET","POST"])
 def login():
@@ -196,11 +208,12 @@ def sorting_results():
     pass
     # displays house info for the user
 
-@app.route('/show_students')
+@app.route('/show_students',methods=["GET","POST"])
 def show_students():
-    pass
     # queries the students table and displays a list of students that the user has saved
     # there will also be update and delete buttons that will redirect to an update page or redirect back to the show_students (for delete)
+    #student_list = Student.query().all()
+    return render_template("show_students.html")#,student_list=student_list)
 
 @app.route('/show_spells')
 def show_spells():
@@ -215,3 +228,4 @@ def update_student():
 if __name__ == '__main__':
     db.create_all()
     manager.run()
+    app.run(use_reloader=True, debug=True)
