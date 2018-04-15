@@ -1,6 +1,17 @@
 {% extends 'base.html' %}
 
 {% block main_content %}
-Welcome to Hogwarts, bitches.
+<h1>Welcome to Hogwarts, bitches.</h1>
+
+<div>
+	Search for a Hogwarts Student to befriend or duel:
+<form action="{{ url_for('show_students') }}" method="POST">
+    {{ form.name.label() }}{{ form.name() }}<br>
+    {{ form.affilitation.label() }}{{ form.affilitation() }}<br><br>
+    {{ form.submit() }}
+    {{ form.hidden_tag() }}
+</form>
+</div>
+
 
 {% endblock %}
