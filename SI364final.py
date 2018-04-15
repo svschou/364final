@@ -50,6 +50,13 @@ migrate = Migrate(app, db)
 manager.add_command('db', MigrateCommand)
 #manager.add_command("shell", Shell(make_context=make_shell_context))
 
+## DB load function
+## Necessary for behind the scenes login manager that comes with flask_login capabilities! Won't run without this.
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id)) # returns User object or None
+
+
 ## Models
 
 user_students = db.Table('user_students',db.Column('user_id',db.Integer, db.ForeignKey('users.id')),db.Column('student_id',db.Integer, db.ForeignKey('students.id')))
@@ -104,26 +111,79 @@ class House(db.Model):
 
 ## Helper Functions
 
+def get_char_data(char_name):
+    base_url = "https://www.potterapi.com/v1/"
+    hp_api_key = "$2a$10$XPnZrHnIYgf.R9etCbM/8eHqwCnygF9MlSVbcVA4wDlPsIZpwsZa2"
+
+    params = {"key":hp_api_key,"name": char_name}
+
+    response = requests.get(base_url+"characters",params=params)
+    hp_list = json.loads(response.text) 
+
+    return hp_list # list of character dictionaries
+
+## Forms
+# GIPHY HOMEWORK - PROVIDED
+class RegistrationForm(FlaskForm):
+    email = StringField('Email:', validators=[Required(),Length(1,64),Email()])
+    username = StringField('Username:',validators=[Required(),Length(1,64),Regexp('^[A-Za-z][A-Za-z0-9_.]*$',0,'Usernames must have only letters, numbers, dots or underscores')])
+    password = PasswordField('Password:',validators=[Required(),EqualTo('password2',message="Passwords must match")])
+    password2 = PasswordField("Confirm Password:",validators=[Required()])
+    submit = SubmitField('Register User')
+
+    #Additional checking methods for the form
+    def validate_email(self,field):
+        if User.query.filter_by(email=field.data).first():
+            raise ValidationError('Email already registered.')
+
+    def validate_username(self,field):
+        if User.query.filter_by(username=field.data).first():
+            raise ValidationError('Username already taken')
+
+class LoginForm(FlaskForm):
+    email = StringField('Email', validators=[Required(), Length(1,64), Email()])
+    password = PasswordField('Password', validators=[Required()])
+    remember_me = BooleanField('Keep me logged in')
+    submit = SubmitField('Log In')
+
 ## View Functions
 @app.route('/', methods=["GET","POST"]) # starting page
 def index():
-    pass 
+    #pass 
     # will render_template for base.html, which will include links to all clickable pages and ensures sign in/sign out buttons depending on authentication
     # clickable links include: /sorting_hat, /show_students, /show_spells
+    return(render_template("index.html"))
 
 @app.route('/login',methods=["GET","POST"])
 def login():
-    pass
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user is not None and user.verify_password(form.password.data):
+            login_user(user, form.remember_me.data)
+            return redirect(request.args.get('next') or url_for('index'))
+        flash('Invalid username or password.')
+    return render_template('login.html',form=form)
     # allows user to login using a LoginForm
 
 @app.route('/logout')
+@login_required
 def logout():
-    pass
+    logout_user()
+    flash('You have been logged out')
+    return redirect(url_for('index'))
     # logs out user and redirects user back to /index page
 
 @app.route('/register',methods=["GET","POST"])
 def register():
-    pass
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(email=form.email.data,username=form.username.data,password=form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('You can now log in!')
+        return redirect(url_for('login'))
+    return render_template('register.html',form=form)
     # allows user to sign up for an account using registration form, commits changes to users table and redirects user to login page
 
 @app.route('/sorting_hat',methods=["GET","POST"])
