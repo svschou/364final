@@ -120,7 +120,27 @@ def get_char_data(char_name):
 
     return hp_list # list of character dictionaries
 
+def get_or_create_house(db_session, house_name):
+    house = db_session.query(House).filter_by(name=house_name).first()
+    if house:
+        return house
+    else:
+        house = House(name=house_name)
+        db_session.add(house)
+        db_session.commit()
+        return house
 
+def get_or_create_student(db_session, st_name, st_house, st_patronus, st_affil):
+	student = db_session.query(HogwartsStudents).filter_by(name=st_name).first()
+	if student:
+		return student
+	else:
+		house = get_or_create_house(db_session, st_house)
+		student = Student(name=st_name,house=house.id,patronus=st_patronus,affilitation=st_affil)
+		db_session.add(student)
+        db_session.commit()
+        return student
+		 
 
 ## Forms
 # GIPHY HOMEWORK - PROVIDED
