@@ -29,7 +29,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 app.static_folder = 'static'
 app.config['SECRET_KEY'] = 'hardtoguessstring'
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL') or "postgresql://localhost/SI364projectplansvschou"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL') or "postgresql://localhost/SI364finaltest"
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -91,7 +91,10 @@ class Student(db.Model):
     name = db.Column(db.String(255), unique=True)
     house_id = db.Column(db.Integer,db.ForeignKey("houses.id")) # one to many relationship
     patronus = db.Column(db.String(64))
-    affilitation = db.Column(db.String(64)) # friend, enemy, study buddy
+    affil = db.Column(db.String(64)) # friend, enemy, study buddy
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    user = db.relationship("User",backref='Student')
 
 class Spell(db.Model):
     __tablename__ = "spells"
@@ -99,7 +102,10 @@ class Spell(db.Model):
     incantation = db.Column(db.String(150))
     spell_type = db.Column(db.String(150))
     description = db.Column(db.String(150))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     # RELATIONSHIP TO USERS
+    user = db.relationship("User",backref='Spell')
+
 
 class House(db.Model):
     __tablename__ = "houses"
@@ -116,9 +122,17 @@ def get_char_data(char_name):
     params = {"key":hp_api_key,"name": char_name}
 
     response = requests.get(base_url+"characters",params=params)
-    hp_list = json.loads(response.text) 
+    hp_list = json.loads(response.text)
 
-    return hp_list # list of character dictionaries
+    student_name = hp_list[0]["name"]
+    #student_house = form_house
+    student_house = hp_list[0]["house"]
+    if "patronus" in hp_list[0]:
+        student_patronus = hp_list[0]["patronus"]
+    else:
+        student_patronus = "No known patronus" 
+
+    return (student_name,student_house,student_patronus) # tup
 
 def get_or_create_house(db_session, house_name):
     house = db_session.query(House).filter_by(name=house_name).first()
@@ -130,17 +144,20 @@ def get_or_create_house(db_session, house_name):
         db_session.commit()
         return house
 
-def get_or_create_student(db_session, st_name, st_house, st_patronus, st_affil):
-	student = db_session.query(HogwartsStudents).filter_by(name=st_name).first()
-	if student:
-		return student
-	else:
-		house = get_or_create_house(db_session, st_house)
-		student = Student(name=st_name,house=house.id,patronus=st_patronus,affilitation=st_affil)
-		db_session.add(student)
+def get_or_create_student(db_session, st_name, st_house, st_patronus, st_affil,current_user):
+    student = db_session.query(Student).filter_by(name=st_name,).first()
+    if student:
+        return student
+    else:
+        house = get_or_create_house(db_session, st_house)
+        student = Student(name=st_name,house_id=house.id,patronus=st_patronus,affil=st_affil,user_id=current_user.id)
+        db_session.add(student)
+        db_session.commit()
+
+        current_user.students.append(student)
+        db_session.add(current_user)
         db_session.commit()
         return student
-		 
 
 ## Forms
 # GIPHY HOMEWORK - PROVIDED
@@ -173,15 +190,18 @@ class SearchStudentForm(FlaskForm):
     def validate_name(form,field):
         if " " not in field.data:
             raise ValidationError("Please enter the first and last name separated by a space")
-    affilitation = StringField("Enter your affilitation with this student (friend, enemy, etc.): ",validators=[Required()])
+    affil = StringField("Enter your affiliation with this student (friend, enemy, etc.): ",validators=[Required()])
     submit = SubmitField('Search Hogwarts Students')
 
 ## View Functions
 @app.route('/', methods=["GET","POST"]) # starting page
+@login_required
 def index():
     form = SearchStudentForm()
-    if form.validate_on_submit(): ## --> Post to a new page
-    	student_data = get_char_data(form.name.data)
+    if form.validate_on_submit(): 
+    	student_data = get_char_data(form.name.data) # tup name, house, patronus
+    	student = get_or_create_student(db.session, st_name=student_data[0],st_house=student_data[1],st_patronus=student_data[2],st_affil=form.affil.data,current_user=current_user)
+    	return render_template("show_students.html")
     # will render_template for base.html, which will include links to all clickable pages and ensures sign in/sign out buttons depending on authentication
     # clickable links include: /sorting_hat, /show_students, /show_spells
     return render_template("index.html",form=form)
@@ -229,10 +249,11 @@ def sorting_results():
     # displays house info for the user
 
 @app.route('/show_students',methods=["GET","POST"])
+@login_required
 def show_students():
     # queries the students table and displays a list of students that the user has saved
     # there will also be update and delete buttons that will redirect to an update page or redirect back to the show_students (for delete)
-    #student_list = Student.query().all()
+    student_list = Student.query().all()
     return render_template("show_students.html")#,student_list=student_list)
 
 @app.route('/show_spells')
