@@ -201,6 +201,9 @@ class UpdateAffilForm(FlaskForm):
 	new_affil = StringField("Update your affiliation with this Hogwarts student: ",validators=[Required()])
 	submit = SubmitField("Update")
 
+class DeleteStudentForm(FlaskForm):
+	submit = SubmitField("Delete this Student")
+
 ## View Functions
 @app.route('/', methods=["GET","POST"]) # starting page
 @login_required
@@ -260,6 +263,7 @@ def sorting_results():
 @login_required
 def show_students():
     update_form = UpdateAffilButtonForm()
+    delete_form = DeleteStudentForm()
     # queries the students table and displays a list of students that the user has saved
     # there will also be update and delete buttons that will redirect to an update page or redirect back to the show_students (for delete)
     student_list = Student.query.all()
@@ -267,7 +271,7 @@ def show_students():
     for st in student_list:
         house = house = House.query.filter_by(id=st.house_id).first()
         student_tups.append((st,house))
-    return render_template("show_students.html",lst=student_tups,form=update_form)
+    return render_template("show_students.html",lst=student_tups,form_up=update_form,form_del=delete_form)
 
 @app.route('/show_spells')
 def show_spells():
@@ -279,7 +283,6 @@ def update_student(student):
 	form = UpdateAffilForm()
 	s = Student.query.filter_by(id=student).first()
 	print(s.name)
-	print("WOULD SOMETHING JUST WORK FOR ONCE")
 	if form.validate_on_submit():
 		print("inside if statement")
 		new_affil = form.new_affil.data
@@ -292,6 +295,15 @@ def update_student(student):
 	print("form not validated")
 	return render_template("update_student.html",student=s,form=form)
     # has a update form for the users to change the affiliations between them and the students 
+
+@app.route('/delete_student/<student>',methods=["GET","POST"])
+def delete_student(student):
+	s = Student.query.filter_by(id=student).first()
+	db.session.delete(s)
+	db.session.commit()
+
+	flash("Successfully deleted {} from your list of students.".format(s.name))
+	return redirect(url_for("show_students"))
 
 if __name__ == '__main__':
     db.create_all()
