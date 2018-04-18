@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+
+{% block main_content %}
+<form method="POST" action="/update_student/{{ student.id }}">
+	{{ form.hidden_tag() }}
+	{{ form.new_affil.label }} {{ form.new_affil() }}
+	{{ form.submit() }}
+</form>
+{% endblock %}

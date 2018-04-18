@@ -1,5 +1,14 @@
 {% extends 'base.html' %}
 
 {% block main_content %}
-<h2>Students you know: <h2>
+<h2>Students you know: </h2>
+{% for st in lst %}<br>
+	{{ st[0].name }} - {{ st[0].affil }}<br>
+	House: {{ st[1].name }} <br>
+	Patronus: {{ st[0].patronus }}<br>
+	<form method="POST" action="/update_student/{{ st[0].id }}">
+		{{ form.hidden_tag() }}
+		{{ form.submit() }}
+	</form>
+{% endfor %}
 {% endblock %}
