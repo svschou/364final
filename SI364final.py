@@ -159,7 +159,7 @@ def get_or_create_student(db_session, st_name, st_house, st_patronus, st_affil,c
         db_session.commit()
         return student
 
-## Forms
+## FORMS
 # GIPHY HOMEWORK - PROVIDED
 class RegistrationForm(FlaskForm):
     email = StringField('Email:', validators=[Required(),Length(1,64),Email()])
@@ -193,6 +193,14 @@ class SearchStudentForm(FlaskForm):
     affil = StringField("Enter your affiliation with this student (friend, enemy, etc.): ",validators=[Required()])
     submit = SubmitField('Search Hogwarts Students')
 
+## UPDATE FORMS
+class UpdateAffilButtonForm(FlaskForm):
+	submit = SubmitField("Update Affiliation")
+
+class UpdateAffilForm(FlaskForm):
+	new_affil = StringField("Update your affiliation with this Hogwarts student: ",validators=[Required()])
+	submit = SubmitField("Update")
+
 ## View Functions
 @app.route('/', methods=["GET","POST"]) # starting page
 @login_required
@@ -201,7 +209,7 @@ def index():
     if form.validate_on_submit(): 
     	student_data = get_char_data(form.name.data) # tup name, house, patronus
     	student = get_or_create_student(db.session, st_name=student_data[0],st_house=student_data[1],st_patronus=student_data[2],st_affil=form.affil.data,current_user=current_user)
-    	return render_template("show_students.html")
+    	return redirect(url_for("show_students"))
     # will render_template for base.html, which will include links to all clickable pages and ensures sign in/sign out buttons depending on authentication
     # clickable links include: /sorting_hat, /show_students, /show_spells
     return render_template("index.html",form=form)
@@ -251,19 +259,38 @@ def sorting_results():
 @app.route('/show_students',methods=["GET","POST"])
 @login_required
 def show_students():
+    update_form = UpdateAffilButtonForm()
     # queries the students table and displays a list of students that the user has saved
     # there will also be update and delete buttons that will redirect to an update page or redirect back to the show_students (for delete)
-    student_list = Student.query().all()
-    return render_template("show_students.html")#,student_list=student_list)
+    student_list = Student.query.all()
+    student_tups = []
+    for st in student_list:
+        house = house = House.query.filter_by(id=st.house_id).first()
+        student_tups.append((st,house))
+    return render_template("show_students.html",lst=student_tups,form=update_form)
 
 @app.route('/show_spells')
 def show_spells():
     pass
     # queries the spells table and displays a list of spells that the user has saved 
 
-@app.route('/update_student')
-def update_student():
-    pass
+@app.route('/update_student/<student>',methods=["GET","POST"])
+def update_student(student):
+	form = UpdateAffilForm()
+	s = Student.query.filter_by(id=student).first()
+	print(s.name)
+	print("WOULD SOMETHING JUST WORK FOR ONCE")
+	if form.validate_on_submit():
+		print("inside if statement")
+		new_affil = form.new_affil.data
+		s = Student.query.filter_by(id=student).first()
+		s.affil = new_affil
+		db.session.commit()
+
+		flash("Successfully updated {}'s affiliation!".format(s.name))
+		return redirect(url_for("show_students"))
+	print("form not validated")
+	return render_template("update_student.html",student=s,form=form)
     # has a update form for the users to change the affiliations between them and the students 
 
 if __name__ == '__main__':
