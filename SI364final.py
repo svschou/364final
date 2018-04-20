@@ -30,7 +30,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 app.static_folder = 'static'
 app.config['SECRET_KEY'] = 'hardtoguessstring'
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL') or "postgresql://localhost/SI364finaltest"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL') or "postgresql://localhost/SI364final"
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -89,7 +89,7 @@ class User(UserMixin, db.Model):
 class Student(db.Model):
     __tablename__ = "students"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True)
+    name = db.Column(db.String(255))
     house_id = db.Column(db.Integer,db.ForeignKey("houses.id")) # one to many relationship
     patronus = db.Column(db.String(64))
     affil = db.Column(db.String(64)) # friend, enemy, study buddy
@@ -140,10 +140,8 @@ def get_sorting_house():
 	base_url = "https://www.potterapi.com/v1/"
 
 	response = requests.get(base_url+"sortingHat")
-	hp_house = json.loads(repsonse.text)
+	hp_house = json.loads(response.text)
 	return hp_house
-
-
 
 def get_spells_info():
 	results = requests.get('https://www.pojo.com/harry-potter-spell-list/')
@@ -252,6 +250,9 @@ class SearchSpellForm(FlaskForm):
 				raise ValidationError("Please enter a spell name without any numbers in it")
 	submit = SubmitField('Search Spells')
 
+class SortingHatForm(FlaskForm):
+	submit = SubmitField('Click here to be sorted into a Hogwarts House')
+
 ## UPDATE FORMS
 class UpdateAffilButtonForm(FlaskForm):
 	submit = SubmitField("Update Affiliation")
@@ -266,7 +267,17 @@ class DeleteStudentForm(FlaskForm):
 class DeleteSpellForm(FlaskForm):
 	submit = SubmitField("Delete this Spell")
 
+
 ## View Functions
+
+@app.errorhandler(404)
+def page_not_found(e):
+	return render_template('error404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+	return render_template("error500.html"), 500
+
 @app.route('/', methods=["GET","POST"]) # starting page
 @login_required
 def index():
@@ -327,12 +338,29 @@ def register():
 
 @app.route('/sorting_hat',methods=["GET","POST"])
 def sorting():
-    pass
     # has button for user to click to be randomly sorted into a Hogwarts house via a SortingHatForm (just a submit button?), saves returned house to user.hogwarts_house and redirects user to sorting_results.html
+    form = SortingHatForm()
+    return render_template('sorting_hat.html',form=form)
 
 @app.route('/sorting_results',methods=["GET","POST"])
 def sorting_results():
-    pass
+	description = {"Gryffindor":"values bravery, daring, nerve, and chivalry.","Ravenclaw":"values intelligence, knowledge, and wit.","Hufflepuff":"values hard work, dedication, patience, loyalty, and fair play.","Slytherin":"values ambition, cunning and resourcefulness."}
+
+	if current_user.hogwarts_house:
+		been_sorted = True
+		return render_template("sorting_results.html",been_sorted=been_sorted,house=current_user.hogwarts_house,desc=description[current_user.hogwarts_house])
+	else:
+		hp_house = get_sorting_house()
+
+		current_user.hogwarts_house = hp_house
+		db.session.add(current_user)
+		db.session.commit()
+
+		been_sorted = False
+		#return "Congratulations! You've been sorted into " + current_user.hogwarts_house
+		return render_template("sorting_results.html",been_sorted=been_sorted,house=current_user.hogwarts_house,desc=description[current_user.hogwarts_house])
+
+    #return "Ooooh ahh something happened"
     # displays house info for the user
 
 @app.route('/show_students',methods=["GET","POST"])
