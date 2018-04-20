@@ -339,12 +339,14 @@ def register():
     # allows user to sign up for an account using registration form, commits changes to users table and redirects user to login page
 
 @app.route('/sorting_hat',methods=["GET","POST"])
+@login_required
 def sorting():
     # has button for user to click to be randomly sorted into a Hogwarts house via a SortingHatForm (just a submit button?), saves returned house to user.hogwarts_house and redirects user to sorting_results.html
     form = SortingHatForm()
     return render_template('sorting_hat.html',form=form)
 
 @app.route('/sorting_results',methods=["GET","POST"])
+@login_required
 def sorting_results():
 	description = {"Gryffindor":"values bravery, daring, nerve, and chivalry.","Ravenclaw":"values intelligence, knowledge, and wit.","Hufflepuff":"values hard work, dedication, patience, loyalty, and fair play.","Slytherin":"values ambition, cunning and resourcefulness."}
 
@@ -366,7 +368,7 @@ def sorting_results():
     # displays house info for the user
 
 @app.route('/show_students',methods=["GET","POST"])
-#@login_required
+@login_required
 def show_students():
     update_form = UpdateAffilButtonForm()
     delete_form = DeleteStudentForm()
@@ -380,7 +382,7 @@ def show_students():
     return render_template("show_students.html",lst=student_tups,form_up=update_form,form_del=delete_form)
 
 @app.route('/show_spells')
-#@login_required
+@login_required
 def show_spells():
     # queries the spells table and displays a list of spells that the user has saved 
     delete_form = DeleteSpellForm()
@@ -388,6 +390,7 @@ def show_spells():
     return render_template("show_spells.html",lst=spell_list,form=delete_form)
 
 @app.route('/update_student/<student>',methods=["GET","POST"])
+@login_required
 def update_student(student):
 	form = UpdateAffilForm()
 	s = Student.query.filter_by(id=student).first()
@@ -406,6 +409,7 @@ def update_student(student):
     # has a update form for the users to change the affiliations between them and the students 
 
 @app.route('/delete_student/<student>',methods=["GET","POST"])
+@login_required
 def delete_student(student):
 	s = Student.query.filter_by(id=student).first()
 	db.session.delete(s)
@@ -415,6 +419,7 @@ def delete_student(student):
 	return redirect(url_for("show_students"))
 
 @app.route('/delete_spell/<spell>',methods=["GET","POST"])
+@login_required
 def delete_spell(spell):
 	sp = Spell.query.filter_by(id=spell).first()
 	db.session.delete(sp)
