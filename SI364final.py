@@ -1,7 +1,8 @@
 # SI364 Final Project
 # Stephanie Schouman
 
-# Import statements
+## IMPORT STATEMENTS
+
 import os
 import json
 import datetime
@@ -18,17 +19,13 @@ from wtforms import StringField, SubmitField, FileField, PasswordField, BooleanF
 from wtforms.validators import Required, Length, Email, Regexp, EqualTo
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# Haven't decided if I'll need this yet
-from requests_oauthlib import OAuth2Session 
-from requests.exceptions import HTTPError
-
 from hp_api_key import hp_api_key
 
 
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# App configuration
+## APP CONFIGURATION
 app = Flask(__name__)
 app.static_folder = 'static'
 app.config['SECRET_KEY'] = 'hardtoguessstring'
@@ -36,7 +33,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL') or "postg
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Login configurations
+## LOGIN CONFIGURATION
 login_manager = LoginManager()
 login_manager.session_protection = 'strong'
 login_manager.login_view = 'login'
@@ -46,7 +43,7 @@ login_manager.init_app(app)
 #def make_shell_context():
     #return dict(app=app, db=db, User=User)
 
-# Manager setup
+## MANAGER SET UP
 manager = Manager(app)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -150,9 +147,8 @@ def get_spells_info():
 	soup = BeautifulSoup(results.text, 'html.parser')
 
 	table_soup = soup.find('table')
-	#print(table_soup)
+
 	rows_soup = table_soup.find_all('tr')
-	#print(rows_soup[2])
 
 	list_of_spells_tup = []
 
@@ -160,7 +156,6 @@ def get_spells_info():
 		spell_soup = row.find_all('td')
 		# empty rows in the table, checking there is actual data
 		if len(spell_soup[0].text) > 1:
-			#print(spell_soup[0].text)
 			spell_incantation = spell_soup[0].text
 			spell_type = spell_soup[1].text
 			spell_description = spell_soup[2].text
@@ -255,7 +250,7 @@ class SearchSpellForm(FlaskForm):
 class SortingHatForm(FlaskForm):
 	submit = SubmitField('Click here to be sorted into a Hogwarts House')
 
-## UPDATE FORMS
+## UPDATE/DELETE FORMS
 class UpdateAffilButtonForm(FlaskForm):
 	submit = SubmitField("Update Affiliation")
 
@@ -270,7 +265,7 @@ class DeleteSpellForm(FlaskForm):
 	submit = SubmitField("Delete this Spell")
 
 
-## View Functions
+## VIEW FUNCTIONS
 
 @app.errorhandler(404)
 def page_not_found(e):
@@ -283,6 +278,8 @@ def internal_server_error(e):
 @app.route('/', methods=["GET","POST"]) # starting page
 @login_required
 def index():
+	# will render_template for base.html, which will include links to all clickable pages and ensures sign in/sign out buttons depending on authentication
+    # clickable links include: /sorting_hat, /show_students, /show_spells
     student_form = SearchStudentForm()
     spell_form = SearchSpellForm()
     if student_form.validate_on_submit(): 
@@ -301,13 +298,12 @@ def index():
                 print(spell)
                 return redirect(url_for("show_spells"))
 
-    # will render_template for base.html, which will include links to all clickable pages and ensures sign in/sign out buttons depending on authentication
-    # clickable links include: /sorting_hat, /show_students, /show_spells
     print("form didn't submit?")
     return render_template("index.html",form=student_form,form2=spell_form)
 
 @app.route('/login',methods=["GET","POST"])
 def login():
+	# allows user to login using a LoginForm
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
@@ -316,18 +312,18 @@ def login():
             return redirect(request.args.get('next') or url_for('index'))
         flash('Invalid username or password.')
     return render_template('login.html',form=form)
-    # allows user to login using a LoginForm
 
 @app.route('/logout')
 @login_required
 def logout():
+	# logs out user and redirects user back to /index page
     logout_user()
     flash('You have been logged out')
     return redirect(url_for('index'))
-    # logs out user and redirects user back to /index page
 
 @app.route('/register',methods=["GET","POST"])
 def register():
+	# allows user to sign up for an account using registration form, commits changes to users table and redirects user to login page
     form = RegistrationForm()
     if form.validate_on_submit():
         user = User(email=form.email.data,username=form.username.data,password=form.password.data)
@@ -336,7 +332,7 @@ def register():
         flash('You can now log in!')
         return redirect(url_for('login'))
     return render_template('register.html',form=form)
-    # allows user to sign up for an account using registration form, commits changes to users table and redirects user to login page
+    
 
 @app.route('/sorting_hat',methods=["GET","POST"])
 @login_required
@@ -348,6 +344,7 @@ def sorting():
 @app.route('/sorting_results',methods=["GET","POST"])
 @login_required
 def sorting_results():
+	# displays house info for the user
 	description = {"Gryffindor":"values bravery, daring, nerve, and chivalry.","Ravenclaw":"values intelligence, knowledge, and wit.","Hufflepuff":"values hard work, dedication, patience, loyalty, and fair play.","Slytherin":"values ambition, cunning and resourcefulness."}
 
 	if current_user.hogwarts_house:
@@ -361,19 +358,16 @@ def sorting_results():
 		db.session.commit()
 
 		been_sorted = False
-		#return "Congratulations! You've been sorted into " + current_user.hogwarts_house
 		return render_template("sorting_results.html",been_sorted=been_sorted,house=current_user.hogwarts_house,desc=description[current_user.hogwarts_house])
-
-    #return "Ooooh ahh something happened"
-    # displays house info for the user
 
 @app.route('/show_students',methods=["GET","POST"])
 @login_required
 def show_students():
-    update_form = UpdateAffilButtonForm()
-    delete_form = DeleteStudentForm()
     # queries the students table and displays a list of students that the user has saved
     # there will also be update and delete buttons that will redirect to an update page or redirect back to the show_students (for delete)
+    update_form = UpdateAffilButtonForm()
+    delete_form = DeleteStudentForm()
+   
     student_list = Student.query.filter_by(user_id=current_user.id).all()
     student_tups = []
     for st in student_list:
@@ -392,6 +386,7 @@ def show_spells():
 @app.route('/update_student/<student>',methods=["GET","POST"])
 @login_required
 def update_student(student):
+	# has a update form for the users to change the affiliations between them and the students
 	form = UpdateAffilForm()
 	s = Student.query.filter_by(id=student).first()
 	print(s.name)
@@ -405,12 +400,12 @@ def update_student(student):
 		flash("Successfully updated {}'s affiliation!".format(s.name))
 		return redirect(url_for("show_students"))
 	print("form not validated")
-	return render_template("update_student.html",student=s,form=form)
-    # has a update form for the users to change the affiliations between them and the students 
+	return render_template("update_student.html",student=s,form=form) 
 
 @app.route('/delete_student/<student>',methods=["GET","POST"])
 @login_required
 def delete_student(student):
+	# deletes student from users saved students
 	s = Student.query.filter_by(id=student).first()
 	db.session.delete(s)
 	db.session.commit()
@@ -421,6 +416,7 @@ def delete_student(student):
 @app.route('/delete_spell/<spell>',methods=["GET","POST"])
 @login_required
 def delete_spell(spell):
+	# deletes spell from users saved spells
 	sp = Spell.query.filter_by(id=spell).first()
 	db.session.delete(sp)
 	db.session.commit()
