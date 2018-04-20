@@ -4,12 +4,19 @@
 <h1>Welcome to Hogwarts, bitches.</h1>
 
 <div>
-	Search for a Hogwarts Student to befriend or duel:
 <form action="{{ url_for('index') }}" method="POST">
     {{ form.name.label() }}{{ form.name() }}<br>
     {{ form.affil.label() }}{{ form.affil() }}<br><br>
     {{ form.submit() }}
     {{ form.hidden_tag() }}
+</form>
+</div>
+
+<div>
+<form action="{{ url_for('index') }}" method="POST">
+    {{ form2.spell.label() }}{{ form2.spell() }}<br><br>
+    {{ form2.submit() }}
+    {{ form2.hidden_tag() }}
 </form>
 </div>
 

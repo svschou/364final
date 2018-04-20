@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block main_content %}
+<h2> Sorting Hat Results: </h2>
+
+{% if been_sorted %}
+	You've already been sorted into <strong>{{ house }}</strong><br><br>
+{% else %}
+	Congratulations you've been sorted into <strong>{{ house }}</strong><br><br>
+{% endif %}
+
+{{ house }} {{ desc }}
+
+<div>
+{% for message in get_flashed_messages() %}
+{{ message }}
+{% endfor %}
+</div>
+{% endblock %}

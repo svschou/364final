@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block main_content %}
+<h2>Your Spellbook: </h2>
+<h3> Here's a list of all the spells you know: </h3>
+
+{% for sp in lst %}
+{{ sp.incantation }} - {{ sp.spell_type }}<br>
+{{ sp.description }}<br>
+	<form method="POST" action="/delete_spell/{{ sp.id }}">
+		{{ form.hidden_tag() }}
+		{{ form.submit() }}
+	</form><br>
+{% endfor %}
+<div>
+{% for message in get_flashed_messages() %}
+{{ message }}
+{% endfor %}
+</div>
+{% endblock %}

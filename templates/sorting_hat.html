@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block main_content %}
+<h2> Sorting Hat: </h2>
+<a href="http://harrypotter.wikia.com/wiki/Hogwarts_Houses"> Click here to learn more about the Hogwarts houses </a><br><br>
+
+
+<form method="GET" action="{{ url_for('sorting_results') }}">
+	{{ form.hidden_tag() }}
+	{{ form.submit() }}
+</form><br>
+
+<div>
+{% for message in get_flashed_messages() %}
+{{ message }}
+{% endfor %}
+</div>
+{% endblock %}
