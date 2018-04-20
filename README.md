@@ -8,6 +8,12 @@ In this Harry Potter-themed project, a user will be able to explore Hogwarts by 
 ## Installation Requirements
 * `flask` library and all `flask`-related modules used in SI364 (flask,flask_script,flask_sqlalchemy,flask_login,flask_wtf)
 * `bs4` - used in scraping HTML data using BeautifulSoup
+* `hp_api_key.py` has my Harry Potter API key
+
+## Sources
+* https://www.potterapi.com/login/
+* https://www.pojo.com/harry-potter-spell-list/
+* http://harrypotter.wikia.com/wiki/Hogwarts_Houses
 
 ## How to run application:
 * `cd` to directory where SI364final.py lives
