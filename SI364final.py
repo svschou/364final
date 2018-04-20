@@ -6,6 +6,7 @@ import os
 import json
 import datetime
 import requests
+from bs4 import BeautifulSoup
 
 from flask import Flask, render_template, session, redirect, request, url_for, flash
 from flask_script import Manager, Shell
@@ -57,7 +58,7 @@ def load_user(user_id):
     return User.query.get(int(user_id)) # returns User object or None
 
 
-## Models
+## MODELS
 
 user_students = db.Table('user_students',db.Column('user_id',db.Integer, db.ForeignKey('users.id')),db.Column('student_id',db.Integer, db.ForeignKey('students.id')))
 
@@ -113,8 +114,9 @@ class House(db.Model):
     name = db.Column(db.String(255), unique=True)
 
 
-## Helper Functions
+## HELPER FUNCTIONS
 
+# FROM PROJECT PLAN
 def get_char_data(char_name):
     base_url = "https://www.potterapi.com/v1/"
     hp_api_key = "$2a$10$XPnZrHnIYgf.R9etCbM/8eHqwCnygF9MlSVbcVA4wDlPsIZpwsZa2"
@@ -134,6 +136,40 @@ def get_char_data(char_name):
 
     return (student_name,student_house,student_patronus) # tup
 
+def get_sorting_house():
+	base_url = "https://www.potterapi.com/v1/"
+
+	response = requests.get(base_url+"sortingHat")
+	hp_house = json.loads(repsonse.text)
+	return hp_house
+
+
+
+def get_spells_info():
+	results = requests.get('https://www.pojo.com/harry-potter-spell-list/')
+	soup = BeautifulSoup(results.text, 'html.parser')
+
+	table_soup = soup.find('table')
+	#print(table_soup)
+	rows_soup = table_soup.find_all('tr')
+	#print(rows_soup[2])
+
+	list_of_spells_tup = []
+
+	for row in rows_soup[2:]:
+		spell_soup = row.find_all('td')
+		# empty rows in the table, checking there is actual data
+		if len(spell_soup[0].text) > 1:
+			#print(spell_soup[0].text)
+			spell_incantation = spell_soup[0].text
+			spell_type = spell_soup[1].text
+			spell_description = spell_soup[2].text
+			#print(spell_incantation,spell_type, spell_description)
+			list_of_spells_tup.append((spell_incantation,spell_type, spell_description))
+	return list_of_spells_tup
+
+list_of_spells = get_spells_info()
+
 def get_or_create_house(db_session, house_name):
     house = db_session.query(House).filter_by(name=house_name).first()
     if house:
@@ -145,7 +181,7 @@ def get_or_create_house(db_session, house_name):
         return house
 
 def get_or_create_student(db_session, st_name, st_house, st_patronus, st_affil,current_user):
-    student = db_session.query(Student).filter_by(name=st_name,).first()
+    student = db_session.query(Student).filter_by(name=st_name,user_id=current_user.id).first()
     if student:
         return student
     else:
@@ -158,6 +194,21 @@ def get_or_create_student(db_session, st_name, st_house, st_patronus, st_affil,c
         db_session.add(current_user)
         db_session.commit()
         return student
+
+def get_or_create_spell(db_session, spell_tup, current_user):
+	spell = db_session.query(Spell).filter_by(incantation=spell_tup[0],user_id=current_user.id).first()
+	if spell:
+		return spell
+	else:
+		spell = Spell(incantation=spell_tup[0],spell_type=spell_tup[1],description=spell_tup[2],user_id=current_user.id)
+		db_session.add(spell)
+		db_session.commit()
+
+		current_user.spells.append(spell)
+		db_session.add(current_user)
+		db_session.commit()
+
+		return spell
 
 ## FORMS
 # GIPHY HOMEWORK - PROVIDED
@@ -186,12 +237,20 @@ class LoginForm(FlaskForm):
 # SIMILAR TO MIDTERM
 # CHANGES: not requiring house, requiring affiliation
 class SearchStudentForm(FlaskForm):
-    name = StringField("Enter the name of a Hogwarts Student: ",validators=[Required()])
+    name = StringField("Search for a Hogwarts Student to befriend or duel: ",validators=[Required()])
     def validate_name(form,field):
         if " " not in field.data:
             raise ValidationError("Please enter the first and last name separated by a space")
     affil = StringField("Enter your affiliation with this student (friend, enemy, etc.): ",validators=[Required()])
     submit = SubmitField('Search Hogwarts Students')
+
+class SearchSpellForm(FlaskForm):
+	spell = StringField("Enter the name of a spell or charm you'd like to learn: ",validators=[Required()])
+	def validate_spell(form,field):
+		for char in field.data:
+			if char in "1234567890":
+				raise ValidationError("Please enter a spell name without any numbers in it")
+	submit = SubmitField('Search Spells')
 
 ## UPDATE FORMS
 class UpdateAffilButtonForm(FlaskForm):
@@ -204,18 +263,35 @@ class UpdateAffilForm(FlaskForm):
 class DeleteStudentForm(FlaskForm):
 	submit = SubmitField("Delete this Student")
 
+class DeleteSpellForm(FlaskForm):
+	submit = SubmitField("Delete this Spell")
+
 ## View Functions
 @app.route('/', methods=["GET","POST"]) # starting page
 @login_required
 def index():
-    form = SearchStudentForm()
-    if form.validate_on_submit(): 
-    	student_data = get_char_data(form.name.data) # tup name, house, patronus
-    	student = get_or_create_student(db.session, st_name=student_data[0],st_house=student_data[1],st_patronus=student_data[2],st_affil=form.affil.data,current_user=current_user)
-    	return redirect(url_for("show_students"))
+    student_form = SearchStudentForm()
+    spell_form = SearchSpellForm()
+    if student_form.validate_on_submit(): 
+        print("formed submitted")
+        student_data = get_char_data(student_form.name.data) # tup name, house, patronus
+        print(student_data)
+        student = get_or_create_student(db.session, st_name=student_data[0],st_house=student_data[1],st_patronus=student_data[2],st_affil=student_form.affil.data,current_user=current_user)
+        print(student)
+        return redirect(url_for("show_students"))
+
+    if spell_form.validate_on_submit():
+        spell_name = spell_form.spell.data
+        for tup in list_of_spells:
+            if tup[0].lower() == spell_name.lower():
+                spell = get_or_create_spell(db.session,tup,current_user)
+                print(spell)
+                return redirect(url_for("show_spells"))
+
     # will render_template for base.html, which will include links to all clickable pages and ensures sign in/sign out buttons depending on authentication
     # clickable links include: /sorting_hat, /show_students, /show_spells
-    return render_template("index.html",form=form)
+    print("form didn't submit?")
+    return render_template("index.html",form=student_form,form2=spell_form)
 
 @app.route('/login',methods=["GET","POST"])
 def login():
@@ -260,13 +336,13 @@ def sorting_results():
     # displays house info for the user
 
 @app.route('/show_students',methods=["GET","POST"])
-@login_required
+#@login_required
 def show_students():
     update_form = UpdateAffilButtonForm()
     delete_form = DeleteStudentForm()
     # queries the students table and displays a list of students that the user has saved
     # there will also be update and delete buttons that will redirect to an update page or redirect back to the show_students (for delete)
-    student_list = Student.query.all()
+    student_list = Student.query.filter_by(user_id=current_user.id).all()
     student_tups = []
     for st in student_list:
         house = house = House.query.filter_by(id=st.house_id).first()
@@ -274,9 +350,12 @@ def show_students():
     return render_template("show_students.html",lst=student_tups,form_up=update_form,form_del=delete_form)
 
 @app.route('/show_spells')
+#@login_required
 def show_spells():
-    pass
     # queries the spells table and displays a list of spells that the user has saved 
+    delete_form = DeleteSpellForm()
+    spell_list = Spell.query.filter_by(user_id=current_user.id).all()
+    return render_template("show_spells.html",lst=spell_list,form=delete_form)
 
 @app.route('/update_student/<student>',methods=["GET","POST"])
 def update_student(student):
@@ -304,6 +383,15 @@ def delete_student(student):
 
 	flash("Successfully deleted {} from your list of students.".format(s.name))
 	return redirect(url_for("show_students"))
+
+@app.route('/delete_spell/<spell>',methods=["GET","POST"])
+def delete_spell(spell):
+	sp = Spell.query.filter_by(id=spell).first()
+	db.session.delete(sp)
+	db.session.commit()
+
+	flash("Successfully deleted {} from your list of spells.".format(sp.incantation))
+	return redirect(url_for("show_spells"))
 
 if __name__ == '__main__':
     db.create_all()
