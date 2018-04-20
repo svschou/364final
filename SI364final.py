@@ -24,6 +24,8 @@ from requests.exceptions import HTTPError
 
 from hp_api_key import hp_api_key
 
+
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 # App configuration
